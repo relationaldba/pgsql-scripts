@@ -1,0 +1,27 @@
+# Log file
+*.log
+
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+
+# eBooks
+*.epub
+*.mobi
+*.pdf
+
+# Temp files
+*.tmp
+*.temp
+*.xyz
+
+# CSV Files
+*.csv
+
+# Zip files
+*.tar.gz
+*.gz
+*.zip
+*.7zip
+*.rar
