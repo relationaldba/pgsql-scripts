@@ -1,0 +1,208 @@
+Primary: 
+
+listen_addresses = '*'
+wal_level = 'replica'
+max_slot_wal_keep_size = '50GB'
+wal_compression = 'on'
+synchronous_commit = 'on'
+synchronous_standby_names = 'pgsql02'
+
+
+psql -c "SELECT * FROM pg_create_physical_replication_slot('pgsql02');"
+
+
+
+Synchronous Secondary:
+
+listen_addresses = '*'
+wal_level = 'replica'
+max_slot_wal_keep_size = '50GB'
+wal_compression = 'on'
+hot_standby = 'on'
+primary_conninfo = 'application_name=pgsql02 user=pgreplication password=pgreplication host=pgsql01 port=5432'
+recovery_target_timeline = 'latest'
+primary_slot_name = 'pgsql02'
+
+psql -c "SELECT * FROM pg_drop_replication_slot ('pgsql01');"
+==========================================
+
+
+Failover Config:
+
+Primary: 
+
+listen_addresses = '*'
+wal_level = 'replica'
+max_slot_wal_keep_size = '50GB'
+wal_compression = 'on'
+hot_standby = 'on'
+primary_conninfo = 'application_name=pgsql01 user=pgreplication password=pgreplication host=pgsql02 port=5432'
+recovery_target_timeline = 'latest'
+primary_slot_name = 'pgsql01'
+
+psql -c "SELECT * FROM pg_drop_replication_slot ('pgsql02');"
+
+
+
+Synchronous Secondary:
+
+listen_addresses = '*'
+wal_level = 'replica'
+max_slot_wal_keep_size = '50GB'
+wal_compression = 'on'
+synchronous_commit = 'on'
+synchronous_standby_names = 'pgsql01'
+
+
+psql -c "SELECT * FROM pg_create_physical_replication_slot('pgsql01');"
+
+
+===========================================
+
+/* Replication Status: Run on the primary instance. */
+sudo -u postgres psql -x -c "SELECT usename, application_name, client_addr, state, sync_state, replay_lag, now() as "datetime" FROM pg_stat_replication;"
+sudo -u postgres psql -x -c "SELECT slot_name, slot_type, temporary, active, wal_status, now() as "datetime" FROM pg_replication_slots;"
+
+sudo -u postgres psql -x -c "SELECT pg_reload_conf(), now() as "datetime";"
+sudo -u postgres psql -x -c "SELECT name, setting, now() as "datetime" FROM pg_settings WHERE pending_restart IS true;"
+
+===========================================
+
+Sample pg_basebackup
+
+su - postgres
+PGDATA="/var/lib/pgsql/13/data"
+rm -rf $PGDATA/
+pg_basebackup --host=pgsql01 --port=5432 --username=pgreplication --pgdata=$PGDATA --format=plain --wal-method=stream --progress --write-recovery-conf
+cp /home/postgres/* $PGDATA/
+exit
+
+
+
+PostgreSQL Logs:
+
+tail -n 100 $PGDATA/log/postgresql-Sat.log
+
+
+==========================================
+
+su - postgres
+pg_ctl promote -D /var/lib/pgsql/13/data/
+tail -n 100 $PGDATA/log/postgresql-Sat.log
+exit
+
+
+
+
+==========================================
+
+
+cat ./failover.sh 
+#!/bin/bash
+
+PGDATA="/var/lib/pgsql/13/data"
+PGHOME="/home/postgres"
+HOST=$1
+ROLE=$2
+
+NODE01="pgsql01"
+NODE02="pgsql02"
+
+#######################################################
+#                pgsql01 as secondary                 #
+#######################################################
+
+if [[ $HOST == $NODE01 ]] && [[ $ROLE == "secondary" ]]
+then
+echo "Failover of node "$HOST" to "$ROLE" role."
+
+# Stop PostgreSQL service and reload using the pg_basebackup.
+systemctl stop postgresql-13.service
+sudo -u postgres rm -rf $PGDATA/
+sudo -u postgres pg_basebackup --host=$NODE02 --port=5432 --username=pgreplication --pgdata=$PGDATA --format=plain --wal-method=stream --progress --write-recovery-conf
+
+# Copy the config files and start PostgreSQL service
+sudo -u postgres rm -f $PGDATA/postgresql.auto.conf
+sudo -u postgres cp -f $PGHOME"/postgresql."$NODE01"."$ROLE".conf" $PGDATA/postgresql.auto.conf
+systemctl restart postgresql-13.service
+
+#######################################################
+#                 pgsql01 as primary                  #
+#######################################################
+
+elif [[ $HOST == $NODE01 ]] && [[ $ROLE == "primary" ]]
+then
+echo "Failback of node "$HOST" to "$ROLE" role."
+
+# Promote pgsql01 to primary.
+sudo -u postgres /usr/pgsql-13/bin/pg_ctl promote -D /var/lib/pgsql/13/data
+
+# Stop postgresql service to copy the config files.
+systemctl stop postgresql-13.service
+sudo -u postgres rm -f $PGDATA/postgresql.auto.conf
+sudo -u postgres cp -f $PGHOME"/postgresql."$NODE01"."$ROLE".conf" $PGDATA/postgresql.auto.conf
+systemctl restart postgresql-13.service
+
+# Add the replication slot and restart the postgresql service.
+sudo -u postgres psql -c "SELECT * FROM pg_create_physical_replication_slot('"$NODE02"');"
+systemctl restart postgresql-13.service
+
+# Replication Status
+sudo -u postgres psql -c "SELECT usename, application_name, client_addr, state, sync_state, replay_lag FROM pg_stat_replication;"
+sudo -u postgres psql -c "SELECT slot_name, slot_type, temporary, active, wal_status FROM pg_replication_slots;"
+
+
+#######################################################
+#                 pgsql02 as primary                  #
+#######################################################
+
+elif [[ $HOST == $NODE02 ]] && [[ $ROLE == "primary" ]]
+then
+echo "Failover of node "$HOST" to "$ROLE" role."
+
+# Promote to primary
+sudo -u postgres /usr/pgsql-13/bin/pg_ctl promote -D /var/lib/pgsql/13/data
+
+# Stop postgresql service to copy the config files.
+systemctl stop postgresql-13.service
+sudo -u postgres rm -f $PGDATA/postgresql.auto.conf
+sudo -u postgres cp -f $PGHOME"/postgresql."$NODE02"."$ROLE".conf" $PGDATA/postgresql.auto.conf
+systemctl restart postgresql-13.service
+
+# Add the replication slot and restart the postgresql service.
+sudo -u postgres psql -c "SELECT * FROM pg_create_physical_replication_slot('"$NODE01"');"
+systemctl restart postgresql-13.service
+
+# Replication Status
+sudo -u postgres psql -c "SELECT usename, application_name, client_addr, state, sync_state, replay_lag FROM pg_stat_replication;"
+sudo -u postgres psql -c "SELECT slot_name, slot_type, temporary, active, wal_status FROM pg_replication_slots;"
+
+
+#######################################################
+#                pgsql02 as secondary                 #
+#######################################################
+
+elif [[ $HOST == $NODE02 ]] && [[ $ROLE == "secondary" ]]
+then
+echo "Failback of node "$HOST" to "$ROLE" role."
+
+# Stop PostgreSQL service and reload using the pg_basebackup.
+systemctl stop postgresql-13.service
+sudo -u postgres rm -rf $PGDATA/
+sudo -u postgres pg_basebackup --host=$NODE01 --port=5432 --username=pgreplication --pgdata=$PGDATA --format=plain --wal-method=stream --progress --write-recovery-conf
+
+# Copy the config files and start PostgreSQL service
+sudo -u postgres rm -f $PGDATA/postgresql.auto.conf
+sudo -u postgres cp -f $PGHOME"/postgresql."$NODE02"."$ROLE".conf" $PGDATA/postgresql.auto.conf
+systemctl restart postgresql-13.service
+
+#######################################################
+#                invalid configuration                #
+#######################################################
+
+else
+echo "Invalid configuration selected. Please choose appropriate roles for the nodes. \
+Hosts: pgsql01 or pgsql02. \
+Roles: primary or secondary."
+fi
+

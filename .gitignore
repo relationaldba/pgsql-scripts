@@ -1,3 +1,8 @@
+.DS_Store
+.vscode/*
+.archive/*
+.fleet/*
+
 # Log file
 *.log
 
@@ -25,3 +30,11 @@
 *.zip
 *.7zip
 *.rar
+
+# Keys
+*.pem
+*.ppk
+*.pcs
+*.pub
+*.cer
+*.crt

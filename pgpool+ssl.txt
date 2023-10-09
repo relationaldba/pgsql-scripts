@@ -1,0 +1,166 @@
+https://www.postgresql.org/docs/11/ssl-tcp.html
+https://cloud.google.com/sql/docs/postgres/configure-ssl-instance
+https://www.pgpool.net/docs/latest/en/html/install-pgpool.html
+https://www.postgresql.org/docs/11/auth-pg-hba-conf.html
+https://www.pgpool.net/docs/latest/en/html/runtime-ssl.html
+https://www.openssl.org/
+https://www.golinuxcloud.com/tutorial-pki-certificates-authority-ocsp/
+https://www.golinuxcloud.com/openssl-create-client-server-certificate/
+selfsignedcertificate.com
+certificatetools.com
+https://www.simba.com/products/SEN/doc/Client-Server_user_guide/content/clientserver/configuringssl/signingca.htm
+
+openssl genrsa -out client.key.pem 4096
+openssl req -new -key client.key.pem -out client.csr
+
+====================================
+passphrase for ca-root.key = Mar@010318
+
+sudo apt install openssl
+#sudo -u postgres openssl genrsa -des3 -out ca-root.key 4096
+sudo -u postgres openssl genrsa -out ca-root.key 4096
+sudo -u postgres openssl req -x509 -new -nodes -key ca-root.key -sha256 -days 1024 -out ca-root.crt
+
+sudo -u postgres openssl genrsa -out pgpool.key 2048
+sudo -u postgres openssl req -new -key pgpool.key -out pgpool.csr
+sudo -u postgres openssl req -in pgpool.csr -noout -text
+sudo -u postgres openssl x509 -req -in pgpool.csr -CA ca-root.crt -CAkey ca-root.key -CAcreateserial -out pgpool.crt -days 3650 -sha256
+
+sudo -u postgres openssl genrsa -out client.key 2048
+sudo -u postgres openssl req -new -key client.key -out client.csr
+sudo -u postgres openssl req -in client.csr -noout -text
+sudo -u postgres openssl x509 -req -in client.csr -CA ca-root.crt -CAkey ca-root.key -CAcreateserial -out client.crt -days 3650 -sha256
+
+# View the certificate
+openssl x509 -in ca-root.crt -text -noout
+openssl x509 -in pgpool.crt -text -noout
+openssl x509 -in client.crt -text -noout
+
+
+# verify the crt file
+openssl verify -verbose -CAfile ca-root.crt pgpool.crt client.crt
+
+
+# Convert crt to pem format
+openssl x509 -in certificatename.cer -outform PEM -out certificatename.pem
+
+
+#psql Connection string
+psql "host=10.10.20.3 port=5432 user=pgpool sslcert=./client.crt sslkey=./client.key sslrootcert=./ca-root.crt sslmode=require"
+
+psql "host={hostname} sslmode=prefer sslrootcert={ca-cert.pem} sslcert={client-cert.pem} sslkey={client-key.pem} port={port} user={user} dbname={db}"
+
+
+========================================================
+
+#CA key and cert
+openssl req -new -x509 -days 365 -nodes -out ca.crt -keyout ca.key -subj "/CN=root-ca"
+
+
+#server key
+openssl genrsa -out server.key 2048
+
+#server cert signing request
+openssl req -new -key server.key -out server.csr -subj "/C=IN/ST=MH/O=VD/CN=deb-sql-01/emailAddress=varund@figmd.com"
+
+#CA signed Server Cert
+openssl x509 -req -in server.csr -days 365 -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt
+
+
+#client key
+openssl genrsa -out client.key 2048
+
+#client cert signing request
+openssl req -new -key client.key -out client.csr -subj "/C=IN/ST=MH/O=VD/CN=pgpool/emailAddress=varund@figmd.com"
+
+#CA signed client Cert
+openssl x509 -req -in client.csr -days 365 -CA ca.crt -CAkey ca.key -CAcreateserial -out client.crt
+
+========================================================
+
+
+
+
+
+in pgpool_hba.conf 
+set the conection type to hostssl
+add the suffix clientcert=1 after auth method md5
+
+
+
+    $ ./Configure
+    $ make
+    $ make test
+    $ make install
+
+By default, OpenSSL will be installed to
+
+    /usr/local
+
+More precisely, the files will be installed into the  subdirectories
+
+    /usr/local/bin
+    /usr/local/lib
+    /usr/local/include
+    ...
+q
+
+
+
+
+
+====================================
+
+
+#generate the RSA private key
+openssl genpkey -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out ca.key
+
+#Create the CSR (Certificate Signing request)
+openssl req -new -nodes -key ca.key -config csrconfig.txt -out ca.csr
+
+#Self-sign your CSR (Click certconfig.txt in the command below to download config)
+openssl req -x509 -nodes -in ca.csr -days 3650 -key ca.key -config certconfig.txt -extensions req_ext -out ca.crt
+
+#csrconfig.txt
+[ req ]
+default_md = sha256
+prompt = no
+req_extensions = req_ext
+distinguished_name = req_distinguished_name
+[ req_distinguished_name ]
+commonName = Varun Deshpande
+countryName = IN
+stateOrProvinceName = Maharashtra
+localityName = Pune
+organizationName = Varun Deshpande
+[ req_ext ]
+keyUsage=critical,digitalSignature,keyCertSign,cRLSign
+extendedKeyUsage=serverAuth,clientAuth
+basicConstraints=critical,CA:true,pathlen:0
+tlsfeature=status_request
+
+#certconfig.txt
+[ req ]
+default_md = sha256
+prompt = no
+req_extensions = req_ext
+distinguished_name = req_distinguished_name
+[ req_distinguished_name ]
+commonName = Varun Deshpande
+countryName = IN
+stateOrProvinceName = Maharashtra
+localityName = Pune
+organizationName = Varun Deshpande
+[ req_ext ]
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid:always,issuer
+keyUsage=critical,digitalSignature,keyCertSign,cRLSign
+extendedKeyUsage=serverAuth,clientAuth
+basicConstraints=critical,CA:true,pathlen:0
+tlsfeature=status_request
+
+
+
+
+# mkdir /tmp/host_files
+# mount -t 9p -o trans=virtio,version=9p2000.L /hostmedia /home/varund/media
