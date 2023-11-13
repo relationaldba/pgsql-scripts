@@ -1,20 +1,18 @@
+# Config files
 .DS_Store
 .vscode/*
-.archive/*
 .fleet/*
 
-# Log file
+# Env files
+.env
+
+# Archived files
+.archive/*
+
+# Log files
 *.log
-
-# Binaries for programs and plugins
-*.exe
-*.dll
-*.so
-
-# eBooks
-*.epub
-*.mobi
-*.pdf
+*.log.gz
+*.log.tar.gz
 
 # Temp files
 *.tmp
@@ -31,10 +29,15 @@
 *.7zip
 *.rar
 
-# Keys
+# Certs/Keys
 *.pem
 *.ppk
 *.pcs
 *.pub
+*.priv
 *.cer
 *.crt
+.idea/modules.xml
+.idea/pgsql-scripts.iml
+.idea/vcs.xml
+.idea/workspace.xml

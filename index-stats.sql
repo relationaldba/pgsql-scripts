@@ -59,8 +59,8 @@ SELECT
     i.indisclustered AS is_clustered,
     i.indisvalid AS is_valid,
     i.indisready AS is_ready,
-    i.indislive AS is_live,
-    -- (pg_relation_size('"' || nsp.nspname || '"."' || ci.relname || '"') / 1024.0 / 1024.0 / 1024.0)::decimal(18, 2) AS size_gb
+    i.indislive AS is_live
+    -- , (pg_relation_size('"' || nsp.nspname || '"."' || ci.relname || '"') / 1024.0 / 1024.0 / 1024.0)::decimal(18, 2) AS size_gb
 FROM
     pg_index AS i
     JOIN pg_class AS ci ON i.indexrelid = ci.oid
@@ -70,7 +70,7 @@ FROM
     JOIN pg_namespace AS nsp ON cr.relnamespace = nsp.oid
         AND nsp.nspname NOT LIKE 'pg_%'
 WHERE
-    cr.relname = '%';
+    cr.relname LIKE '%';
 
 -- Details of all existing indexes
 SELECT

@@ -39,7 +39,7 @@ WHERE
     /* exclude this pid from the list */
     AND pid <> pg_backend_pid()
     /* exclude idle pids */
-    AND state <> 'idle'
+    AND coalesce(state, 'idle') <> 'idle'
     AND query NOT LIKE 'autovacuum%'
     -- AND COALESCE(application_name, '') IN ('vacuumlo', 'vacuumdb', '')
     -- AND cardinality(pg_blocking_pids(pid)) > 0  /* uncomment to see blocked queries */

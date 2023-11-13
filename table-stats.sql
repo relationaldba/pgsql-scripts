@@ -2,6 +2,7 @@ SELECT
     now()::date AS date,
     current_database() AS database_name,
     schemaname::text || '.'::text || relname::text AS tablename,
+    -- (pg_total_relation_size('"' || schemaname::text || '"."'::text || relname::text || '"') / 1024.0 / 1024.0 / 1024.0)::decimal(18, 2) AS size_gb,
     n_live_tup,
     n_dead_tup,
     (n_dead_tup * 100 / (n_live_tup + n_dead_tup + 1.00))::decimal(18, 2) AS pct_dead,
