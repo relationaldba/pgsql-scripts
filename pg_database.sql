@@ -4,7 +4,8 @@ SELECT
     pg_size_pretty(pg_database_size(pg_database.datname)) AS database_size
 FROM pg_database
 JOIN pg_user ON pg_database.datdba = pg_user.usesysid
-WHERE pg_database.datdba > 10;
+WHERE pg_database.datdba > 10
+AND datistemplate = false;
 
 
 
