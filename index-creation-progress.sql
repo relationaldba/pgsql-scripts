@@ -5,6 +5,7 @@ SELECT
     p.datname AS database,
     p.relid,
     p.phase,
+    100 * (blocks_done+tuples_done)/(blocks_total+tuples_total) AS pct_done,
     a.query,
     p.blocks_total,
     p.blocks_done,
