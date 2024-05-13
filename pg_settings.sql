@@ -1,13 +1,13 @@
 SELECT now()::date AS date,
        current_database() AS database_name,
-       name AS setting_name,
+       name AS setting,
        CASE 
            WHEN coalesce(setting, '') = '-1' THEN setting::text
            WHEN coalesce(unit, '') = '8kB' THEN ((setting::int) * 8 / 1024)::text || replace(replace(coalesce(unit, ''), '8kB', 'MB'), 'kB', 'MB')
            WHEN coalesce(unit, '') = 'kB' THEN ((setting::int) / 1024)::text || replace(replace(coalesce(unit, ''), '8kB', 'MB'), 'kB', 'MB')
            ELSE setting::text || coalesce(unit, '')::text
-       END AS setting_value
-       , setting, unit
+       END AS formatted_value
+       , value, unit, reset_value
 FROM pg_catalog.pg_settings
 WHERE name IN ('autovacuum',
                'autovacuum_analyze_scale_factor',

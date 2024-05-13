@@ -31,7 +31,7 @@ FROM
    CROSS JOIN defcoll
    LEFT JOIN pg_collation AS c ON a.attcollation = c.oid
 WHERE
-   a.attrelid = 'hfj_spidx_string'::regclass
+   a.attrelid = 'cstm.stage_komig_master'::regclass
    AND a.attnum > 0
 ORDER BY
    attnum;

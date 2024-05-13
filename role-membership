@@ -1,0 +1,29 @@
+
+WITH RECURSIVE cte AS
+    (SELECT oid
+     FROM pg_roles
+     WHERE rolname = 'myusername'
+     UNION ALL SELECT m.roleid
+     FROM cte
+     JOIN pg_auth_members m ON m.member = cte.oid)
+SELECT oid,
+       oid::regrole::text AS rolename
+FROM cte;
+
+
+SELECT * FROM pg_auth_members;
+
+SELECT role.rolname AS Role,
+    member.rolname AS Member,
+    member.rolinherit AS Inherit,
+    member.rolcreatedb AS CreateDB,
+    member.rolconfig AS RoleConfig,
+    grantor.rolname AS Grantor
+FROM pg_auth_members AS auth
+JOIN pg_roles AS role
+    ON auth.roleid = role.oid
+JOIN pg_roles AS member
+    ON auth.member = member.oid
+JOIN pg_roles AS grantor
+    ON auth.grantor = grantor.oid
+WHERE member.rolname = 'myusername';
