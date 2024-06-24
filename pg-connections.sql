@@ -14,5 +14,9 @@ GROUP BY
     datname,
     usename,
     client_addr::text,
+    application_name
+ORDER BY datname,
+    usename,
+    client_addr::text,
     application_name;
 
