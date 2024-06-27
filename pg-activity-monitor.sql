@@ -20,6 +20,7 @@ SELECT
     usename,
     -- age(clock_timestamp(), backend_start) AS "backend_age",
     age(clock_timestamp(), query_start) AS "query_age",
+    age(clock_timestamp(), state_change) AS "state_age",
     query,
     application_name,
     client_addr::text,
