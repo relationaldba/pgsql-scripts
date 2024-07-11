@@ -4,7 +4,7 @@ SELECT
     indexname,
     c.reltuples AS num_rows,
     --    pg_size_pretty(pg_relation_size(quote_ident(t.tablename)::text)) AS table_size,
-    --    pg_size_pretty(pg_relation_size(quote_ident(indexrelname)::text)) AS index_size,
+    --     pg_size_pretty(pg_relation_size(quote_ident(indexrelname)::text)) AS index_size,
     CASE WHEN indisunique THEN
         'Y'
     ELSE
@@ -60,7 +60,8 @@ SELECT
     i.indisvalid AS is_valid,
     i.indisready AS is_ready,
     i.indislive AS is_live
-    -- , (pg_relation_size('"' || nsp.nspname || '"."' || ci.relname || '"') / 1024.0 / 1024.0 / 1024.0)::decimal(18, 2) AS size_gb
+    -- , (pg_relation_size('"' || nsp.nspname || '"."' || ci.relname ||
+    -- '"') / 1024.0 / 1024.0 / 1024.0)::decimal(18, 2) AS size_gb
 FROM
     pg_index AS i
     JOIN pg_class AS ci ON i.indexrelid = ci.oid
@@ -124,3 +125,17 @@ ORDER BY
     tablename,
     indexname;
 
+-- Index Size
+SELECT
+    i.relname "table_name",
+    indexrelname "index_name",
+    pg_size_pretty(pg_total_relation_size(relid)) AS "total_size",
+    pg_size_pretty(pg_relation_size(relid)) AS "table_size",
+    pg_size_pretty(pg_indexes_size(relid)) AS "total_index_size",    
+    pg_size_pretty(pg_relation_size(indexrelid)) "index_size",
+    reltuples::bigint "estimated_table_rows"
+FROM
+    pg_stat_all_indexes i
+    JOIN pg_class c ON i.relid = c.oid
+WHERE
+    i.relname = 'employees'
